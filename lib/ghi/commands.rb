@@ -21,5 +21,7 @@ module GHI
     autoload :Unassign,  'ghi/commands/unassign'
     autoload :Unlock,    'ghi/commands/unlock'
     autoload :Version,   'ghi/commands/version'
+
+    autoload :Scrum,   'ghi/commands/scrum'
   end
 end

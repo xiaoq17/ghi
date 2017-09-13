@@ -46,6 +46,7 @@ module GHI
     end
 
     CONTENT_TYPE = 'application/vnd.github.v3+json'
+    PREVIEW_CONTENT_TYPE = 'application/vnd.github.inertia-preview+json'
     USER_AGENT = 'ghi/%s (%s; +%s)' % [
       GHI::Commands::Version::VERSION,
       RUBY_DESCRIPTION,
@@ -104,7 +105,7 @@ module GHI
       end
 
       headers = options.fetch :headers, {}
-      headers.update 'Accept' => CONTENT_TYPE, 'User-Agent' => USER_AGENT
+      headers.update 'Accept' => options[:preview] ? PREVIEW_CONTENT_TYPE : CONTENT_TYPE, 'User-Agent' => USER_AGENT
       req = METHODS[method].new path, headers
       if GHI::Authorization.token
         req['Authorization'] = "token #{GHI::Authorization.token}"

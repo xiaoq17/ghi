@@ -40,6 +40,7 @@ The most commonly used ghi commands are:
    status      Determine whether or not issues are enabled for this repo
    enable      Enable issues for the current repo
    disable     Disable issues for the current repo
+   scrum       List issues according to platform scrum conventions
 
 See 'ghi help <command>' for more information on a specific command.
 EOF

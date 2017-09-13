@@ -6,6 +6,15 @@ GitHub Issues on the command line. Use your `$EDITOR`, not your browser.
 
 ## Install
 
+Install `ghi-scrum` extension directly
+
+```bash
+$ gem install specific_install
+$ gem specific_install https://github.com/xiaoq17/ghi.git feat/scrum
+```
+
+*** Please ignore following sections ***
+
 Via brew ([latest stable release](https://github.com/stephencelis/ghi/releases/latest)):
 ``` sh
 brew install ghi

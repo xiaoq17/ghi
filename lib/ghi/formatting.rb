@@ -167,37 +167,64 @@ module GHI
       format_state assigns[:state], header
     end
 
+    def format_assignees assignees, me
+      assignees.map do |a|
+        login = a["login"]
+        fg(login == me ? :yellow : :gray) { login }
+      end.join(" ")
+    end
+
+    def format_progress body
+      return '??%' if body.empty?
+
+      empty_check_list_count = body.scan(/(?=[-|\*] \[ \])/).count
+      checked_check_list_count = body.scan(/(?=[-|\*] \[[x|X]\])/).count
+      all = empty_check_list_count + checked_check_list_count
+
+      all == 0 ? '??%' : "#{checked_check_list_count*100/all}%"
+    end
+
     def format_issues issues, include_repo
       return 'None.' if issues.empty?
 
-      include_repo and issues.each do |i|
-        %r{/repos/[^/]+/([^/]+)} === i['url'] and i['repo'] = $1
+      # always include repo
+      # include_repo and issues.each do |i|
+      issues.each do |i|
+        # %r{/repos/[^/]+/([^/]+)} === i['url'] and i['repo'] = $1
+        %r{/repos/([^/]+/[^/]+)} === i['url'] and i['repo'] = $1
       end
 
       nmax, rmax = %w(number repo).map { |f|
         issues.sort_by { |i| i[f].to_s.size }.last[f].to_s.size
       }
+      pmax = 4
 
-      issues.map { |i|
+      # always group by repo
+      issues.group_by{|h| h['repo']}.values.flatten.map { |i|
         n, title, labels = i['number'], i['title'], i['labels']
-        l = 9 + nmax + rmax + no_color { format_labels labels }.to_s.length
-        a = i['assignee']
-        a_is_me = a && a['login'] == Authorization.username
-        l += a['login'].to_s.length + 2 if a
+        l = 9 + nmax + rmax + pmax + no_color { format_labels labels }.to_s.length
+
+        # a = i['assignee']
+        # a_is_me = a && a['login'] == Authorization.username
+        assignees = i['assignees'] || []
+
+        # l += a['login'].to_s.length + 2 if a
         p = i['pull_request']['html_url'] and l += 2 if i.key?('pull_request')
         c = i['comments']
         l += c.to_s.length + 1 unless c == 0
         m = i['milestone']
         [
-          " ",
-          (i['repo'].to_s.rjust(rmax) if i['repo']),
-          format_number(n.to_s.rjust(nmax)),
+          format_progress(i['body']).rjust(pmax),
+          # (i['repo'].to_s.rjust(rmax) if i['repo']),
+          "#{i['repo'].to_s.rjust(rmax)}##{format_number(n.to_s.ljust(nmax))}",
+          # format_number(n.to_s.rjust(nmax)),
           truncate(title, l),
           (format_labels(labels) unless assigns[:dont_print_labels]),
           (fg(:green) { m['title'] } if m),
           (fg('aaaaaa') { c } unless c == 0),
           (fg('aaaaaa') { '↑' } if p),
-          (fg(a_is_me ? :yellow : :gray) { "@#{a['login']}" } if a),
+          # (fg(a_is_me ? :yellow : :gray) { "@#{a['login']}" } if a),
+          (format_assignees assignees, Authorization.username unless assignees.empty?),
           (fg('aaaaaa') { '‡' } if m)
         ].compact.join ' '
       }
@@ -213,6 +240,11 @@ module GHI
       milestones = {}
       extracted_milestones = []
       milestone_index = 0
+      empty_milestone = {
+        "title" => "<No Milestone>",
+        "repo" => "<No Repo>",
+        "issues" => []
+      }
       issues.map { |i|
         milestone = i['milestone']
         milestone["issues"] = [] if milestone && !(milestones.key? milestone["id"])
@@ -221,6 +253,7 @@ module GHI
             milestones.merge!({milestone["id"] => milestone_index })
             i.delete "milestone"
             milestone["issues"] << i
+            milestone["repo"] = i["repository_url"].split("/")[-2,2].join("/")
             extracted_milestones << milestone
             milestone_index += 1
           else
@@ -228,9 +261,12 @@ module GHI
             i.delete "milestone"
             extracted_milestones[pos_of_existent_milestone]["issues"] << i
           end
+        else
+          empty_milestone["issues"] << i
         end
       }
       extracted_milestones.sort! { |m1, m2| m1['number'] <=> m2['number'] }
+      extracted_milestones << empty_milestone
     end
 
     def format_issues_by_milestone issues, include_repo
@@ -243,7 +279,7 @@ module GHI
       l = 9 + nmax + rmax
 
       issues_by_milestone.map { |milestone|
-        title =  milestone['title'] if milestone["issues"]
+        title = "#{milestone['repo']} -> #{milestone['title']}" if milestone["issues"]
         [
           ("\n  " if milestone["issues"]),
           ("Milestone: " + fg(:green) { truncate(title,l) } if title),
@@ -253,7 +289,7 @@ module GHI
     end
 
     def format_number n
-      colorize? ? "#{bright { n }}:" : "#{n} "
+      colorize? ? "#{bright { n }} " : "#{n} "
     end
 
     # TODO: Show milestone, number of comments, pull request attached.
